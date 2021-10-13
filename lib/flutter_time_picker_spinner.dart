@@ -1,7 +1,8 @@
 library time_picker_spinner;
 
-import 'package:flutter/material.dart';
 import 'dart:math';
+
+import 'package:flutter/material.dart';
 
 class ItemScrollPhysics extends ScrollPhysics {
   /// Creates physics for snapping to item.
@@ -102,10 +103,11 @@ class TimePickerSpinner extends StatefulWidget {
 }
 
 class _TimePickerSpinnerState extends State<TimePickerSpinner> {
-  ScrollController hourController = ScrollController();
-  ScrollController minuteController = ScrollController();
-  ScrollController secondController = ScrollController();
-  ScrollController apController = ScrollController();
+  late final ScrollController hourController;
+  late final ScrollController minuteController;
+  late final ScrollController secondController;
+  late final ScrollController apController;
+
   int currentSelectedHourIndex = -1;
   int currentSelectedMinuteIndex = -1;
   int currentSelectedSecondIndex = -1;
@@ -117,14 +119,15 @@ class _TimePickerSpinnerState extends State<TimePickerSpinner> {
   bool isAPScrolling = false;
 
   /// default settings
-  TextStyle defaultHighlightTextStyle =
+  static const TextStyle defaultHighlightTextStyle =
       TextStyle(fontSize: 32, color: Colors.black);
-  TextStyle defaultNormalTextStyle =
+  static const TextStyle defaultNormalTextStyle =
       TextStyle(fontSize: 32, color: Colors.black54);
-  double defaultItemHeight = 60;
-  double defaultItemWidth = 45;
-  double defaultSpacing = 20;
-  AlignmentGeometry defaultAlignment = Alignment.centerRight;
+  static const double defaultItemHeight = 60;
+  static const double defaultItemWidth = 45;
+  static const double defaultSpacing = 20;
+  static const AlignmentGeometry defaultAlignment = Alignment.centerRight;
+  static const Duration tapScrollDuration = Duration(milliseconds: 250);
 
   /// getter
 
@@ -187,35 +190,64 @@ class _TimePickerSpinnerState extends State<TimePickerSpinner> {
 
   @override
   void initState() {
-    currentTime = widget.time == null ? DateTime.now() : widget.time;
+    _calculateTimeIndexes();
 
-    currentSelectedHourIndex =
-        (currentTime!.hour % (widget.is24HourMode ? 24 : 12)) + _getHourCount();
     hourController = ScrollController(
         initialScrollOffset:
             (currentSelectedHourIndex - 1) * _getItemHeight()!);
 
-    currentSelectedMinuteIndex =
-        (currentTime!.minute / widget.minutesInterval).floor() +
-            (isLoop(_getMinuteCount()) ? _getMinuteCount() : 1);
+    secondController = ScrollController(
+        initialScrollOffset:
+            (currentSelectedSecondIndex - 1) * _getItemHeight()!);
+
     minuteController = ScrollController(
         initialScrollOffset:
             (currentSelectedMinuteIndex - 1) * _getItemHeight()!);
+
+    apController = ScrollController(
+        initialScrollOffset: (currentSelectedAPIndex - 1) * _getItemHeight()!);
+
+    super.initState();
+  }
+
+  @override
+  void didUpdateWidget(TimePickerSpinner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.time != null &&
+        !(oldWidget.time?.isAtSameMomentAs(widget.time!) ?? false)) {
+      _calculateTimeIndexes();
+      hourController.animateTo(
+        (currentSelectedHourIndex - 1) * _getItemHeight()!,
+        duration: tapScrollDuration,
+        curve: Curves.ease,
+      );
+
+      minuteController.animateTo(
+        (currentSelectedMinuteIndex - 1) * _getItemHeight()!,
+        duration: tapScrollDuration,
+        curve: Curves.ease,
+      );
+    }
+  }
+
+  void _calculateTimeIndexes() {
+    currentTime = widget.time == null ? DateTime.now() : widget.time;
+
+    currentSelectedHourIndex =
+        (currentTime!.hour % (widget.is24HourMode ? 24 : 12)) + _getHourCount();
+
+    currentSelectedMinuteIndex =
+        (currentTime!.minute / widget.minutesInterval).floor() +
+            (isLoop(_getMinuteCount()) ? _getMinuteCount() : 1);
+
     //print(currentSelectedMinuteIndex);
     //print((currentSelectedMinuteIndex - 1) * _getItemHeight()!);
 
     currentSelectedSecondIndex =
         (currentTime!.second / widget.secondsInterval).floor() +
             (isLoop(_getSecondCount()) ? _getSecondCount() : 1);
-    secondController = ScrollController(
-        initialScrollOffset:
-            (currentSelectedSecondIndex - 1) * _getItemHeight()!);
 
     currentSelectedAPIndex = currentTime!.hour >= 12 ? 2 : 1;
-    apController = ScrollController(
-        initialScrollOffset: (currentSelectedAPIndex - 1) * _getItemHeight()!);
-
-    super.initState();
 
     if (widget.onTimeChange != null) {
       WidgetsBinding.instance!
